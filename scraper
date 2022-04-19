@@ -1,0 +1,121 @@
+library(tidyverse)
+library(rvest)
+library(baseballr)
+
+#ADJUST GET_GAME_PKS_MLB FUNCTION FROM BASEBALLR
+game_pk_simple <- function (date, level_ids = c(1)) 
+{
+  api_call <- paste0("http://statsapi.mlb.com/api/v1/schedule?sportId=", 
+                     paste(level_ids, collapse = ","), "&date=", 
+                     date)
+  payload <- jsonlite::fromJSON(api_call, flatten = TRUE)
+  payload <- payload$dates$games %>% as.data.frame()
+  return(payload)
+}
+
+
+#CREATE VECTOR OF DATES TO SCRAPE
+dates <- seq(as_date("2022-04-01"), today(), by = "days")
+
+#CREATE VECTORS OF FSL AND PCL TEAMS FOR FILTERING
+fsl_2022 <- c("St. Lucie Mets", "Jupiter Hammerheads", "Daytona Tortugas",
+               "Palm Beach Cardinals", "Tampa Tarpons", "Bradenton Marauders",
+               "Fort Myers Mighty Mussels", "Dunedin Blue Jays", "Lakeland Flying Tigers",
+               "Clearwater Threshers")
+
+pcl_2022 <- c("Albuquerque Isotopes", "El Paso Chihuahuas", "Las Vegas Aviators",
+              "Oklahoma City Dodgers", "Reno Aces", "Round Rock Express",
+              "Sacramento River Cats", "Salt Lake Bees", "Sugar Land Space Cowboys",
+              "Tacoma Rainiers", "Charlotte Knights")
+
+#CREATE DUMMY LIST
+game_pks_list <- list()
+
+#LOOP ADJUSTED GAME_PK SCRAPER OVER DATES VECTOR
+for(i in seq_along(dates)){
+  r1 <- dates[i] %>% 
+    game_pk_simple(level_ids = c(11, 14))
+  game_pks_list[[i]] <- r1
+}
+
+#BIND ALL DATES AND FILTER OUT FSL AND PCL GAMES
+fsl_pcl_game_pks_2021 <- bind_rows(game_pks_list) %>% 
+  tibble() %>% 
+  filter(!status.detailedState %in% c("Cancelled", "Postponed")) %>% 
+  select(gamePk, teams.home.team.name) %>% 
+  filter(teams.home.team.name %in% c(fsl_2022, pcl_2022)) %>% 
+  unique()
+
+#CREATE DUMMY LIST
+fsl_pcl_list <- list()
+
+#LOOP PITCH DATA SCRAPER OVER FSL AND PCL GAME PKS
+for(i in seq_along(fsl_pcl_game_pks_2021$gamePk)){
+  r1 <- fsl_pcl_game_pks_2021$gamePk[i] %>% 
+    get_pbp_mlb()
+  fsl_pcl_list[[i]] <- r1
+}
+
+#BIND ALL PITCHES
+fsl_pcl_pitch_data_2022 <- bind_rows(fsl_pcl_list) %>% 
+  filter(isPitch == TRUE) %>% 
+  write_csv("fsl_pcl_pitch_data_2022.csv")
+
+#2021 LOW-A SOUTHEAST PITCH DATA
+library(tidyverse)
+library(rvest)
+library(baseballr)
+
+#ADJUST GET_GAME_PKS_MLB FUNCTION FROM BASEBALLR
+game_pk_simple <- function (date, level_ids = c(1)) 
+{
+  api_call <- paste0("http://statsapi.mlb.com/api/v1/schedule?sportId=", 
+                     paste(level_ids, collapse = ","), "&date=", 
+                     date)
+  payload <- jsonlite::fromJSON(api_call, flatten = TRUE)
+  payload <- payload$dates$games %>% as.data.frame()
+  return(payload)
+}
+
+
+#CREATE VECTOR OF DATES TO SCRAPE
+dates <- seq(as_date("2021-03-01"), as_date("2021-11-01"), by = "days")
+
+#CREATE VECTOR OF LOW-A SOUTHEAST TEAMS FOR FILTERING
+lase_2021 <- c("St. Lucie Mets", "Jupiter Hammerheads", "Daytona Tortugas",
+               "Palm Beach Cardinals", "Tampa Tarpons", "Bradenton Marauders",
+               "Fort Myers Mighty Mussels", "Dunedin Blue Jays", "Lakeland Flying Tigers",
+               "Clearwater Threshers")
+
+#CREATE DUMMY LIST
+game_pks_list <- list()
+
+#LOOP ADJUSTED GAME_PK SCRAPER OVER DATES VECTOR (LEVEL_IDS = 14 SCRAPES ALL LOW-A GAMES)
+for(i in seq_along(dates)){
+  r1 <- dates[i] %>% 
+    game_pk_simple(level_ids = 14)
+  game_pks_list[[i]] <- r1
+}
+
+#BIND ALL DATES AND FILTER OUT LOW-A SOUTHEAST GAMES
+lase_game_pks_2021 <- bind_rows(game_pks_list) %>% 
+  tibble() %>% 
+  filter(!status.detailedState %in% c("Cancelled", "Postponed")) %>% 
+  select(gamePk, teams.home.team.name) %>% 
+  filter(teams.home.team.name %in% lase_2021) %>% 
+  unique()
+
+#CREATE DUMMY LIST
+lase_list <- list()
+
+#LOOP PITCH DATA SCRAPER OVER LOW-A SOUTHEAST GAME PKS
+for(i in seq_along(lase_game_pks_2021$gamePk)){
+  r1 <- lase_game_pks_2021$gamePk[i] %>% 
+    get_pbp_mlb()
+  lase_list[[i]] <- r1
+}
+
+#BIND ALL PITCHES
+lase_pitch_data_2021 <- bind_rows(lase_list) %>% 
+  filter(isPitch == TRUE) %>% 
+  write_csv("lase_pitch_data_2021.csv")
